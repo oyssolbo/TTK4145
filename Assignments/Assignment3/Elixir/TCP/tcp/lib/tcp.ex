@@ -1,77 +1,85 @@
-# This module is hardcoded from https://elixir-lang.org/getting-started/mix-otp/task-and-gen-tcp.html
-# Used to familarize with TCP in elixir
-
+# Required with both a server and a client
 defmodule TCPServer do
-  @moduledoc """
-  The module TCPServer sets up a TCP-server used by
-  other processes to communicate over
-  """
 
-  require Logger
-  use GenServer
+  @default_server_port 1337
+  @default_timeout 500
+  @default_packet_size 1024
+  @local_host {127,0,0,1}
 
-
-  # The options below mean:
-
-  # `:binary` - receives data as binaries (instead of lists)
-  # `packet: :line` - receives data line by line
-  # `active: false` - blocks on `:gen_tcp.recv/2` until data is available
-  # `reuseaddr: true` - allows us to reuse the address if the listener crashes
-
-  # Init function to prevent the compiler from crapping itself
-  def init(arg) do
-    { :ok, arg }
+  def init(stack) do
+    {:ok, stack}
   end
 
-  # Accepts a connection on @p port
-  # Checks if the port is already in use
-  def accept(port) do
-    { :port_state, socket } = :gen_tcp.listen(port,
-            [:binary, packet: :line, active: false, reuseaddr: true])
-    if :port_state == :ok do
-      Logger.info("Accepting connections on port #{port}")
-      loop_acceptor(socket)
-    else
-      Logger.info("There is already a connection on port #{port}")
-      loop_acceptor(socket)
+  def accept_connection(port \\ @default_server_port) do
+    case :gen_tcp.listen(port, [active: false, packet_size: @default_packet_size]) do
+
+    {:ok, listen_socket} ->
+      case :gen_tcp.accept(listen_socket, @default_timeout) do
+        {:ok, socket} ->
+          IO.puts("Accepted connection to #{socket}")
+          listen_connection(socket)
+
+        {:error, reason} ->
+          IO.puts("Error due to #{reason}")
+      end
+
+    {:error, reason} ->
+      IO.puts("Error due to #{reason}")
     end
+
+    accept_connection()
   end
 
-  # Continously accept the connection
-  defp loop_acceptor(socket) do
-    { :ok, client } = :gen_tcp.accept(socket)
-    { :ok, pid } = Task.Supervisor.start_child(TCPServer.TaskSupervisor,
-            fn -> serve(client) end)
-    :ok = :gen_tcp.controlling_process(client, pid)
-    loop_acceptor(socket)
+  def listen_connection(socket) do
+    # :inet.port(socket) # gives local port-number
+    case :gen_tcp.recv(socket, 0, @default_timeout) do
+      {:ok, packet} ->
+        IO.puts("Recieved #{packet} from #{socket}")
+        :gen_tcp.send(socket, packet)
+
+      {:error, reason} ->
+        IO.puts("Error due to #{reason}")
+    end
+
+    listen_connection(socket)
   end
 
-  # Read data from the connection and send back
-  defp serve(socket) do
-    socket |> read_line() |> write_line(socket)
-    serve(socket)
+  def init_connection(ip_address, port) do
+
   end
 
-  # Read a line from the connection
-  defp read_line(socket) do
-    { :ok, data } = :gen_tcp.recv(socket, 0)
-    data
+  def close_connection(socket) do
+    :gen_tcp.close(socket)
   end
 
-  # Write a line to the connection
-  defp write_line(line, socket) do
-    :gen_tcp.send(socket, line)
+
+  def send_data(ip_address, port, data) do
+
   end
+
+
+
+
 end
 
+defmodule TCPClient do
 
-def start() do
-  port = String.to_integer(System.get_env("PORT") || "2020")
+  @default_server_port 1337
+  @default_timeout 500
+  @default_packet_size 1024
+  @local_host {127,0,0,1}
 
-  children = [{ Task.Supervisor, fn -> TCPServer.TaskSupervisor,
-        Supervisor.child_spec(Task, fn -> TCPServer.accept(port) end },
-        restart: :permanent)]
-  opts = [stragegy: :one_for_one, name: TCPServer.Supervisor]
+  def init(stack) do
+    {:ok, stack}
+  end
 
-  Supervisor.start_link((children, opts))
+  def send_data() do
+    case :gen_tcp.connect(@local_host, @default_server_port, [active: false, packet_size: @default_packet_size]) do
+      {:ok, socket} ->
+        :gen_tcp.send(socket, 10000111111111)
+        :gen_tcp.recv(socket, 1024, 500) |> to_string |> IO.puts
+      {:error, reason} ->
+        IO.puts("fml")
+    end
+  end
 end
