@@ -70,7 +70,7 @@ def start(_type, _args) do
 
   children = [
     {Task.Supervisor, name: TCPServer.TaskSupervisor},
-    Supervisor.child_spec({Task, fn -> KVServer.accept(port) end}, restart: :permanent)
+    Supervisor.child_spec({Task, fn -> TCPServer.accept(port) end}, restart: :permanent)
   ]
 
   opts = [strategy: :one_for_one, name: TCPServer.Supervisor]
