@@ -65,13 +65,14 @@ defmodule TCPServer do
 end
 
 
-def start() do
-  port = String.to_integer(System.get_env("PORT") || "2020")
+def start(_type, _args) do
+  port = String.to_integer(System.get_env("PORT") || "4040")
 
-  children = [{ Task.Supervisor, fn -> TCPServer.TaskSupervisor,
-        Supervisor.child_spec(Task, fn -> TCPServer.accept(port) end },
-        restart: :permanent)]
-  opts = [stragegy: :one_for_one, name: TCPServer.Supervisor]
+  children = [
+    {Task.Supervisor, name: TCPServer.TaskSupervisor},
+    Supervisor.child_spec({Task, fn -> KVServer.accept(port) end}, restart: :permanent)
+  ]
 
-  Supervisor.start_link((children, opts))
+  opts = [strategy: :one_for_one, name: KVServer.Supervisor]
+  Supervisor.start_link(children, opts)
 end
