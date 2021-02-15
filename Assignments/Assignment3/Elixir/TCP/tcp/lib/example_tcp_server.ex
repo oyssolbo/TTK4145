@@ -5,7 +5,7 @@ defmodule Server do
   @local_host {127,0,0,1}
 
   def initialize_server(number_connections, port) do
-    case :gen_tcp.listen(port,[active: false, packet_size: @default_packet_size]) do
+    case :gen_tcp.listen(port, [active: false, packet_size: @default_packet_size]) do
         {:ok, listen_socket} ->
             start_servers(number_connections, listen_socket)
             {ok, Port} = :inet.port(listen_socket)
